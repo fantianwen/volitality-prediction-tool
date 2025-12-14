@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv
+
+# 环境变量和敏感配置
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+
+# AWS 和服务器配置
+project/release/aws_account.md
+project/release/*.pem
+project/release/*.key
+
+# 日志文件
+*.log
+logs/
+*.log.*
+
+# 数据文件（可能很大）
+project/data/*.csv
+project/data/*.json
+!project/data/.gitkeep
+
+# 模型文件（可能很大，建议使用 Git LFS 或单独存储）
+project/models/*.pkl
+project/models/*.keras
+project/models/*.h5
+project/models/*_results_*.json
+!project/models/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# 系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# 测试覆盖率
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 其他
+*.pyc
+*.pyo
+*.pyd
+

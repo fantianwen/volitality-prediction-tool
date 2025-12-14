@@ -1,0 +1,7 @@
+# 模型文件目录
+# 
+# 模型文件（.pkl, .keras）已被 .gitignore 忽略
+# 如果需要提交模型文件，请使用 Git LFS:
+#   git lfs track "*.pkl"
+#   git lfs track "*.keras"
+

@@ -1,0 +1,22 @@
+# BTC 价格变动预测 - 依赖
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+
+# 机器学习
+scikit-learn>=1.3.0
+
+# 深度学习 (LSTM 模型需要)
+# 安装: pip install tensorflow
+tensorflow>=2.10.0,<=2.19.0
+
+# 定时任务调度 (预测服务器需要)
+schedule>=1.2.0
+
+# 技术指标计算 (可选，脚本已内置计算)
+# TA-Lib 需要先安装系统依赖:
+#   macOS: brew install ta-lib
+#   Linux: apt-get install ta-lib
+# ta-lib>=0.4.28
+

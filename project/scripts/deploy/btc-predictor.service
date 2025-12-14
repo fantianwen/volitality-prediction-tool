@@ -1,0 +1,45 @@
+# BTC 价格预测服务 - Systemd 服务文件
+# 
+# 安装步骤:
+# 1. 复制文件: sudo cp btc-predictor.service /etc/systemd/system/
+# 2. 编辑配置: sudo nano /etc/systemd/system/btc-predictor.service
+#    - 修改 WorkingDirectory 为实际项目路径
+#    - 修改 ExecStart 中的 Python 解释器路径
+#    - 配置环境变量
+# 3. 重载守护进程: sudo systemctl daemon-reload
+# 4. 启用服务: sudo systemctl enable btc-predictor
+# 5. 启动服务: sudo systemctl start btc-predictor
+# 6. 查看状态: sudo systemctl status btc-predictor
+# 7. 查看日志: journalctl -u btc-predictor -f
+
+[Unit]
+Description=BTC Price Prediction Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/path/to/volitality-prediction-tool/project/scripts
+
+# Python 虚拟环境 (如果使用)
+# Environment="PATH=/path/to/venv/bin:$PATH"
+
+# Telegram 配置
+Environment="TELEGRAM_BOT_TOKEN=your_token_here"
+Environment="TELEGRAM_CHAT_ID=your_chat_id_here"
+Environment="SYMBOL=BTCUSDT"
+
+# 启动命令
+ExecStart=/usr/bin/python3 prediction_server.py --model ../models/regression_model_20251213_213205.pkl
+
+# 自动重启
+Restart=always
+RestartSec=10
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
