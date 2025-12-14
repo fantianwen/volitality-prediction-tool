@@ -14,6 +14,10 @@ tensorflow>=2.10.0,<=2.19.0
 # 定时任务调度 (预测服务器需要)
 schedule>=1.2.0
 
+# Web 前端 (可选)
+flask>=2.3.0
+flask-cors>=4.0.0
+
 # 技术指标计算 (可选，脚本已内置计算)
 # TA-Lib 需要先安装系统依赖:
 #   macOS: brew install ta-lib

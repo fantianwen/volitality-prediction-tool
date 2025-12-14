@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC Price Prediction Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .card-icon {
+            font-size: 1.5em;
+        }
+
+        .price-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .price-card .card-title {
+            color: white;
+        }
+
+        .price-large {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .price-change {
+            font-size: 1.3em;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .price-change.positive {
+            color: #4ade80;
+        }
+
+        .price-change.negative {
+            color: #f87171;
+        }
+
+        .price-change.neutral {
+            color: #94a3b8;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #dc2626;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .position-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .position-card .card-title {
+            color: white;
+        }
+
+        .position-large {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .history-card {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-time {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔮 BTC Price Prediction Dashboard</h1>
+            <p>Real-time price prediction and trading recommendations</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="predictBtn" onclick="runPrediction()">
+                🔮 Run Prediction Now
+            </button>
+            <div class="auto-refresh">
+                <label style="color: white; cursor: pointer;">
+                    <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                    <span>Auto Refresh (30s)</span>
+                </label>
+            </div>
+        </div>
+
+        <div id="errorContainer"></div>
+
+        <div class="dashboard" id="dashboard">
+            <!-- Price Card -->
+            <div class="card price-card">
+                <div class="card-header">
+                    <div class="card-title">💰 Current & Predicted Price</div>
+                    <div class="card-icon">📊</div>
+                </div>
+                <div id="priceContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Prediction Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🎯 Prediction Result</div>
+                    <div class="card-icon">🔮</div>
+                </div>
+                <div id="predictionContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Confidence Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📊 Confidence & Signals</div>
+                    <div class="card-icon">📈</div>
+                </div>
+                <div id="confidenceContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Position Recommendation Card -->
+            <div class="card position-card">
+                <div class="card-header">
+                    <div class="card-title">💼 Position Recommendation</div>
+                    <div class="card-icon">⚖️</div>
+                </div>
+                <div id="positionContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Market Status Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📈 Market Status</div>
+                    <div class="card-icon">🌐</div>
+                </div>
+                <div id="marketContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Prediction History Card -->
+            <div class="card history-card">
+                <div class="card-header">
+                    <div class="card-title">📜 Prediction History</div>
+                    <div class="card-icon">🕐</div>
+                </div>
+                <div id="historyContent">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+
+        // 页面加载时执行预测
+        window.onload = function() {
+            runPrediction();
+            loadHistory();
+        };
+
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML = `<div class="error">❌ ${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        function formatPrice(price) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(price);
+        }
+
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', {
+                timeZone: 'Asia/Shanghai',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function getDirectionClass(direction) {
+            if (direction === '看涨' || direction.includes('Bullish')) return 'positive';
+            if (direction === '看跌' || direction.includes('Bearish')) return 'negative';
+            return 'neutral';
+        }
+
+        function runPrediction() {
+            const btn = document.getElementById('predictBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Predicting...';
+
+            fetch('/api/predict')
+                .then(response => response.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.textContent = '🔮 Run Prediction Now';
+
+                    if (!data.success) {
+                        showError(data.error || 'Prediction failed');
+                        return;
+                    }
+
+                    updateDashboard(data);
+                })
+                .catch(error => {
+                    btn.disabled = false;
+                    btn.textContent = '🔮 Run Prediction Now';
+                    showError('Network error: ' + error.message);
+                });
+        }
+
+        function updateDashboard(data) {
+            // Update Price Card
+            const priceContent = document.getElementById('priceContent');
+            const priceChangeClass = getDirectionClass(data.direction);
+            const changeEmoji = data.direction_emoji || '📊';
+            
+            priceContent.innerHTML = `
+                <div class="price-large">${formatPrice(data.current_price)}</div>
+                <div style="margin: 15px 0; font-size: 1.1em; opacity: 0.9;">Predicted: ${formatPrice(data.predicted_price)}</div>
+                <div class="price-change ${priceChangeClass}">
+                    <span>${changeEmoji}</span>
+                    <span>${data.prediction_pct >= 0 ? '+' : ''}${data.prediction_pct.toFixed(2)}%</span>
+                </div>
+                <div style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">
+                    Funding Rate: ${data.funding_rate.toFixed(4)}%
+                </div>
+            `;
+
+            // Update Prediction Card
+            const predictionContent = document.getElementById('predictionContent');
+            const rangeEmoji = data.range?.emoji || '⚖️';
+            const rangeLabel = data.range?.label || 'Unknown';
+            
+            predictionContent.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">Direction</span>
+                    <span class="stat-value ${priceChangeClass}">${data.direction_emoji} ${data.direction}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Range</span>
+                    <span class="stat-value">${rangeEmoji} ${rangeLabel}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Prediction Time</span>
+                    <span class="stat-value" style="font-size: 0.85em;">${formatTime(data.prediction_time)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Current Time</span>
+                    <span class="stat-value" style="font-size: 0.85em;">${formatTime(data.timestamp)}</span>
+                </div>
+            `;
+
+            // Update Confidence Card
+            const confidenceContent = document.getElementById('confidenceContent');
+            const confidenceBadge = data.confidence >= 70 ? 'badge-success' : 
+                                   data.confidence >= 50 ? 'badge-warning' : 'badge-danger';
+            
+            confidenceContent.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">Confidence</span>
+                    <span class="stat-value">
+                        <span class="badge ${confidenceBadge}">${data.confidence.toFixed(0)}%</span>
+                    </span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${data.confidence}%"></div>
+                </div>
+                <div class="stat-item" style="margin-top: 15px;">
+                    <span class="stat-label">Signal Strength</span>
+                    <span class="stat-value">${data.signal_strength > 0 ? '+' : ''}${data.signal_strength.toFixed(1)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Signal Type</span>
+                    <span class="stat-value">
+                        ${data.signal_strength > 0 ? '🟢 Bullish' : data.signal_strength < 0 ? '🔴 Bearish' : '⚪ Neutral'}
+                    </span>
+                </div>
+            `;
+
+            // Update Position Card
+            const positionContent = document.getElementById('positionContent');
+            if (data.position_recommendation && data.position_recommendation.recommendation !== 'no_trade') {
+                const pos = data.position_recommendation;
+                const recBadge = pos.recommendation === 'strong' ? 'badge-success' :
+                               pos.recommendation === 'moderate' ? 'badge-warning' : 'badge-info';
+                
+                positionContent.innerHTML = `
+                    <div class="position-large">${(pos.position_size * 100).toFixed(1)}%</div>
+                    <div style="margin: 10px 0; font-size: 1.2em;">Leverage: ${pos.leverage.toFixed(1)}x</div>
+                    <div style="margin: 15px 0;">
+                        <span class="badge ${recBadge}">${pos.recommendation.toUpperCase()}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Risk Score</span>
+                        <span class="stat-value">${(pos.risk_score * 100).toFixed(0)}/100</span>
+                    </div>
+                    <div style="margin-top: 15px; font-size: 0.9em; opacity: 0.9;">
+                        ${pos.reason}
+                    </div>
+                `;
+            } else {
+                positionContent.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 1.5em; margin-bottom: 10px;">❌</div>
+                        <div>No Trade Recommended</div>
+                        <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                            ${data.position_recommendation?.reason || 'Signal or confidence too low'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Update Market Status Card
+            const marketContent = document.getElementById('marketContent');
+            const rsiStatus = data.market_status.rsi_1h > 70 ? 'badge-danger' :
+                            data.market_status.rsi_1h < 30 ? 'badge-success' : 'badge-info';
+            const adxStatus = data.market_status.adx_1h > 25 ? 'badge-success' : 'badge-warning';
+            
+            marketContent.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">RSI (1h)</span>
+                    <span class="stat-value">
+                        <span class="badge ${rsiStatus}">${data.market_status.rsi_1h.toFixed(1)}</span>
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">ADX (1h)</span>
+                    <span class="stat-value">
+                        <span class="badge ${adxStatus}">${data.market_status.adx_1h.toFixed(1)}</span>
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Volatility (1h)</span>
+                    <span class="stat-value">${data.market_status.volatility_1h.toFixed(2)}%</span>
+                </div>
+            `;
+
+            // Load history after update
+            loadHistory();
+        }
+
+        function loadHistory() {
+            fetch('/api/history')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) return;
+
+                    const historyContent = document.getElementById('historyContent');
+                    if (data.history.length === 0) {
+                        historyContent.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No prediction history</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    data.history.slice().reverse().forEach(item => {
+                        const changeClass = getDirectionClass(item.direction);
+                        html += `
+                            <div class="history-item">
+                                <div>
+                                    <div style="font-weight: 600;">${item.direction} ${item.prediction_pct >= 0 ? '+' : ''}${item.prediction_pct.toFixed(2)}%</div>
+                                    <div class="history-time">${formatTime(item.timestamp)}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div class="badge ${changeClass === 'positive' ? 'badge-success' : changeClass === 'negative' ? 'badge-danger' : 'badge-info'}">
+                                        ${item.confidence.toFixed(0)}%
+                                    </div>
+                                    <div style="font-size: 0.85em; margin-top: 5px; color: #666;">
+                                        Signal: ${item.signal_strength > 0 ? '+' : ''}${item.signal_strength.toFixed(1)}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    historyContent.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading history:', error);
+                });
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(() => {
+                    runPrediction();
+                }, 30000); // 30 seconds
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+

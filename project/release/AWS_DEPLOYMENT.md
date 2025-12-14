@@ -87,39 +87,85 @@ sudo systemctl status btc-predictor
 │   ├── requirements.txt
 │   ├── .env                    # 需要手动配置
 │   └── deploy/
+├── web/
+│   ├── app.py                  # Web UI 服务器
+│   ├── templates/
+│   │   └── index.html          # Web 界面
+│   ├── requirements.txt
+│   └── start.sh
 ├── models/
 │   └── regression_model_*.pkl
 ├── data/
 └── logs/
     ├── prediction_server.log
-    └── prediction_server.error.log
+    ├── prediction_server.error.log
+    ├── web_ui.log
+    └── web_ui.error.log
 ```
+
+## 🌐 Web UI 部署
+
+Web UI 提供可视化的预测仪表板。详细部署指南请参考 [WEB_UI_DEPLOYMENT.md](WEB_UI_DEPLOYMENT.md)
+
+### 快速启动 Web UI
+
+```bash
+# 部署脚本会自动安装和启动 Web UI
+./deploy_to_aws.sh
+
+# 手动启动
+ssh -i release/trading-bot.pem ubuntu@YOUR_AWS_IP
+sudo systemctl start btc-predictor-web
+sudo systemctl enable btc-predictor-web
+```
+
+### 访问 Web UI
+
+1. **配置 AWS 安全组**: 开放端口 8080
+2. **访问地址**: `http://YOUR_AWS_IP:8080`
+
+详细说明请参考 [WEB_UI_DEPLOYMENT.md](WEB_UI_DEPLOYMENT.md)
 
 ## 🔧 服务管理
 
 ### 查看服务状态
 ```bash
 ssh -i release/trading-bot.pem ubuntu@54.250.16.16
+
+# 预测服务
 sudo systemctl status btc-predictor
+
+# Web UI 服务
+sudo systemctl status btc-predictor-web
 ```
 
 ### 查看日志
 ```bash
-# 实时日志
 ssh -i release/trading-bot.pem ubuntu@54.250.16.16
-tail -f /home/ubuntu/btc-predictor/logs/prediction_server.log
 
-# 错误日志
+# 预测服务日志
+tail -f /home/ubuntu/btc-predictor/logs/prediction_server.log
 tail -f /home/ubuntu/btc-predictor/logs/prediction_server.error.log
+
+# Web UI 日志
+tail -f /home/ubuntu/btc-predictor/logs/web_ui.log
+tail -f /home/ubuntu/btc-predictor/logs/web_ui.error.log
 
 # Systemd 日志
 sudo journalctl -u btc-predictor -f
+sudo journalctl -u btc-predictor-web -f
 ```
 
 ### 重启服务
 ```bash
 ssh -i release/trading-bot.pem ubuntu@54.250.16.16
+
+# 重启所有服务
+sudo systemctl restart btc-predictor btc-predictor-web
+
+# 或分别重启
 sudo systemctl restart btc-predictor
+sudo systemctl restart btc-predictor-web
 ```
 
 ### 停止服务
@@ -253,11 +299,14 @@ tail -100 /home/ubuntu/btc-predictor/logs/prediction_server.log | grep "预测�
 - [ ] 模型文件已训练并可用
 
 部署后:
-- [ ] 服务已启动 (`systemctl status`)
+- [ ] 预测服务已启动 (`systemctl status btc-predictor`)
+- [ ] Web UI 服务已启动 (`systemctl status btc-predictor-web`)
 - [ ] 日志正常 (`tail -f logs/prediction_server.log`)
+- [ ] Web UI 可访问 (`http://YOUR_IP:8080`)
 - [ ] Telegram 通知正常
 - [ ] 预测任务按时执行
 - [ ] 开机自启已配置
+- [ ] AWS 安全组已开放端口 8080
 
 ## 🆘 获取帮助
 

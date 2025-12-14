@@ -71,7 +71,7 @@ ssh -i "$PEM_PATH" -o StrictHostKeyChecking=no -o BatchMode=yes "$REMOTE_USER@$A
 # 创建远程目录
 echo -e "${YELLOW}📁 创建远程目录...${NC}"
 ssh -i "$PEM_PATH" -o StrictHostKeyChecking=no "$REMOTE_USER@$AWS_IP" "
-    mkdir -p $REMOTE_DIR/{scripts,models,data,logs}
+    mkdir -p $REMOTE_DIR/{scripts,models,data,logs,web/templates}
 "
 
 # 同步项目文件
@@ -140,6 +140,10 @@ fi
 source venv/bin/activate
 pip install --upgrade pip -q
 pip install -r scripts/requirements.txt -q
+# 安装 Web UI 依赖（如果存在）
+if [ -f 'web/requirements.txt' ]; then
+    pip install -r web/requirements.txt -q
+fi
 echo '✅ 依赖安装完成'
 "
 
@@ -147,14 +151,17 @@ echo '✅ 依赖安装完成'
 echo -e "${YELLOW}🔧 设置执行权限...${NC}"
 ssh -i "$PEM_PATH" -o StrictHostKeyChecking=no "$REMOTE_USER@$AWS_IP" "
     chmod +x $REMOTE_DIR/scripts/deploy/*.sh
+    if [ -f '$REMOTE_DIR/web/start.sh' ]; then
+        chmod +x $REMOTE_DIR/web/start.sh
+    fi
 "
 
 # 安装 systemd 服务
 if [ "$1" != "--skip-service" ]; then
     echo -e "${YELLOW}⚙️  安装 Systemd 服务...${NC}"
     
-    # 生成服务文件
-    SERVICE_FILE=$(cat << EOF
+    # 生成预测服务文件
+    PREDICTION_SERVICE=$(cat << EOF
 [Unit]
 Description=BTC Price Prediction Service
 After=network.target
@@ -164,14 +171,14 @@ Type=simple
 User=$REMOTE_USER
 WorkingDirectory=$REMOTE_DIR/scripts
 
-    # Python 虚拟环境路径
-    Environment="PATH=$REMOTE_DIR/venv/bin:\$PATH"
+# Python 虚拟环境路径
+Environment="PATH=$REMOTE_DIR/venv/bin:\$PATH"
 
 # 加载环境变量
 EnvironmentFile=$REMOTE_DIR/scripts/.env
 
 # 启动命令
-ExecStart=/usr/bin/python3 $REMOTE_DIR/scripts/prediction_server.py --model ../models/regression_model_20251213_213205.pkl
+ExecStart=$REMOTE_DIR/venv/bin/python3 $REMOTE_DIR/scripts/prediction_server.py --model ../models/regression_model_20251213_213205.pkl
 
 # 自动重启
 Restart=always
@@ -186,18 +193,60 @@ WantedBy=multi-user.target
 EOF
 )
     
+    # 生成 Web UI 服务文件
+    WEB_SERVICE=$(cat << EOF
+[Unit]
+Description=BTC Price Prediction Web Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=$REMOTE_USER
+WorkingDirectory=$REMOTE_DIR/web
+
+# Python 虚拟环境路径
+Environment="PATH=$REMOTE_DIR/venv/bin:\$PATH"
+Environment="PORT=8080"
+
+# 加载环境变量（如果存在）
+EnvironmentFile=$REMOTE_DIR/scripts/.env
+
+# 启动命令
+ExecStart=$REMOTE_DIR/venv/bin/python3 $REMOTE_DIR/web/app.py --port 8080
+
+# 自动重启
+Restart=always
+RestartSec=10
+
+# 日志
+StandardOutput=append:$REMOTE_DIR/logs/web_ui.log
+StandardError=append:$REMOTE_DIR/logs/web_ui.error.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+)
+    
     # 上传服务文件
-    echo "$SERVICE_FILE" | ssh -i "$PEM_PATH" -o StrictHostKeyChecking=no "$REMOTE_USER@$AWS_IP" "sudo tee /etc/systemd/system/btc-predictor.service > /dev/null"
+    echo "$PREDICTION_SERVICE" | ssh -i "$PEM_PATH" -o StrictHostKeyChecking=no "$REMOTE_USER@$AWS_IP" "sudo tee /etc/systemd/system/btc-predictor.service > /dev/null"
+    echo "$WEB_SERVICE" | ssh -i "$PEM_PATH" -o StrictHostKeyChecking=no "$REMOTE_USER@$AWS_IP" "sudo tee /etc/systemd/system/btc-predictor-web.service > /dev/null"
     
     # 重载 systemd
     ssh -i "$PEM_PATH" -o StrictHostKeyChecking=no "$REMOTE_USER@$AWS_IP" "sudo systemctl daemon-reload"
     
     echo -e "${GREEN}✅ Systemd 服务已安装${NC}"
-    echo "   使用以下命令管理服务:"
+    echo ""
+    echo "📊 预测服务管理:"
     echo "   sudo systemctl start btc-predictor"
     echo "   sudo systemctl stop btc-predictor"
     echo "   sudo systemctl status btc-predictor"
     echo "   sudo systemctl enable btc-predictor  # 开机自启"
+    echo ""
+    echo "🌐 Web UI 服务管理:"
+    echo "   sudo systemctl start btc-predictor-web"
+    echo "   sudo systemctl stop btc-predictor-web"
+    echo "   sudo systemctl status btc-predictor-web"
+    echo "   sudo systemctl enable btc-predictor-web  # 开机自启"
 fi
 
 # 重启服务
@@ -205,9 +254,15 @@ if [ "$1" == "--restart" ] || [ "$1" != "--skip-service" ]; then
     echo -e "${YELLOW}🔄 重启服务...${NC}"
     ssh -i "$PEM_PATH" -o StrictHostKeyChecking=no -o BatchMode=yes "$REMOTE_USER@$AWS_IP" "
         sudo systemctl stop btc-predictor 2>/dev/null || true
+        sudo systemctl stop btc-predictor-web 2>/dev/null || true
         sudo systemctl start btc-predictor
+        sudo systemctl start btc-predictor-web
         sleep 2
-        sudo systemctl status btc-predictor --no-pager
+        echo '📊 预测服务状态:'
+        sudo systemctl status btc-predictor --no-pager | head -5
+        echo ''
+        echo '🌐 Web UI 服务状态:'
+        sudo systemctl status btc-predictor-web --no-pager | head -5
     "
 fi
 
@@ -218,13 +273,22 @@ echo "📋 后续步骤:"
 echo "   1. 编辑远程 .env 文件:"
 echo "      ssh -i $PEM_PATH $REMOTE_USER@$AWS_IP 'nano $REMOTE_DIR/scripts/.env'"
 echo ""
-echo "   2. 重启服务:"
-echo "      ssh -i $PEM_PATH $REMOTE_USER@$AWS_IP 'sudo systemctl restart btc-predictor'"
+echo "   2. 配置 AWS 安全组，开放端口 8080 (Web UI):"
+echo "      - 进入 AWS EC2 控制台"
+echo "      - 选择实例 -> 安全组"
+echo "      - 添加入站规则: 类型=自定义TCP, 端口=8080, 来源=0.0.0.0/0 (或您的IP)"
 echo ""
-echo "   3. 查看日志:"
+echo "   3. 重启服务:"
+echo "      ssh -i $PEM_PATH $REMOTE_USER@$AWS_IP 'sudo systemctl restart btc-predictor btc-predictor-web'"
+echo ""
+echo "   4. 查看日志:"
 echo "      ssh -i $PEM_PATH $REMOTE_USER@$AWS_IP 'tail -f $REMOTE_DIR/logs/prediction_server.log'"
+echo "      ssh -i $PEM_PATH $REMOTE_USER@$AWS_IP 'tail -f $REMOTE_DIR/logs/web_ui.log'"
 echo ""
-echo "   4. 查看服务状态:"
-echo "      ssh -i $PEM_PATH $REMOTE_USER@$AWS_IP 'sudo systemctl status btc-predictor'"
+echo "   5. 查看服务状态:"
+echo "      ssh -i $PEM_PATH $REMOTE_USER@$AWS_IP 'sudo systemctl status btc-predictor btc-predictor-web'"
+echo ""
+echo "   6. 访问 Web UI:"
+echo "      http://$AWS_IP:8080"
 echo ""
 
