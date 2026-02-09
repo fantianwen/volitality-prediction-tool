@@ -62,7 +62,8 @@ class PositionManager:
     def calculate_position_size(self, 
                                 signal_strength: float,
                                 confidence: float,
-                                prediction_pct: float) -> Dict[str, float]:
+                                prediction_pct: float,
+                                vzo_trade_action: str = None) -> Dict[str, float]:
         """
         计算建议仓位大小
         
@@ -70,11 +71,26 @@ class PositionManager:
             signal_strength: 信号强度 (-12 到 +12)
             confidence: 置信度 (0-100)
             prediction_pct: 预测涨跌幅百分比
+            vzo_trade_action: VZO trade signal ('ENTER', 'EXIT', 'WARNING', 'HOLD', or None)
         
         Returns:
             包含仓位建议的字典
         """
         config = self.risk_configs[self.risk_level]
+        
+        # 0. VZO EXIT signal overrides everything
+        if vzo_trade_action == 'EXIT':
+            return {
+                'position_size': 0.0,
+                'leverage': 1.0,
+                'recommendation': 'exit',
+                'reason': 'VZO slope signals EXIT - close/reduce position (momentum reversal detected)',
+                'risk_score': 0.0,
+                'signal_factor': 0.0,
+                'confidence_factor': 0.0,
+                'magnitude_factor': 0.0,
+                'vzo_trade_action': 'EXIT',
+            }
         
         # 1. 检查最低要求
         if confidence < config['min_confidence']:
@@ -83,7 +99,8 @@ class PositionManager:
                 'leverage': 1.0,
                 'recommendation': 'no_trade',
                 'reason': f'置信度过低 ({confidence:.0f}% < {config["min_confidence"]}%)',
-                'risk_score': 0.0
+                'risk_score': 0.0,
+                'vzo_trade_action': vzo_trade_action,
             }
         
         abs_signal = abs(signal_strength)
@@ -93,7 +110,8 @@ class PositionManager:
                 'leverage': 1.0,
                 'recommendation': 'no_trade',
                 'reason': f'信号强度不足 ({abs_signal} < {config["min_signal"]})',
-                'risk_score': 0.0
+                'risk_score': 0.0,
+                'vzo_trade_action': vzo_trade_action,
             }
         
         # 2. 计算信号强度因子 (0-1)
@@ -112,6 +130,17 @@ class PositionManager:
         
         # 5. 综合评分 (0-1)
         risk_score = (signal_factor * 0.4 + confidence_factor * 0.4 + magnitude_factor * 0.2)
+        
+        # 5a. VZO trade action adjustments
+        vzo_adjustment = ''
+        if vzo_trade_action == 'WARNING':
+            # Reduce position by 50% on WARNING
+            risk_score *= 0.5
+            vzo_adjustment = ' (reduced 50% due to VZO WARNING)'
+        elif vzo_trade_action == 'ENTER':
+            # Boost by 20% on confirmed ENTER
+            risk_score = min(risk_score * 1.2, 1.0)
+            vzo_adjustment = ' (boosted by VZO ENTER confirmation)'
         
         # 6. 计算仓位大小
         position_size = self.base_position_size * config['position_multiplier'] * risk_score
@@ -133,13 +162,13 @@ class PositionManager:
             reason = '综合评分过低，不建议交易'
         elif risk_score >= 0.7:
             recommendation = 'strong'
-            reason = '信号强、置信度高，建议较大仓位'
+            reason = '信号强、置信度高，建议较大仓位' + vzo_adjustment
         elif risk_score >= 0.5:
             recommendation = 'moderate'
-            reason = '信号和置信度中等，建议中等仓位'
+            reason = '信号和置信度中等，建议中等仓位' + vzo_adjustment
         else:
             recommendation = 'weak'
-            reason = '信号或置信度较低，建议小仓位'
+            reason = '信号或置信度较低，建议小仓位' + vzo_adjustment
         
         return {
             'position_size': position_size,
@@ -150,6 +179,7 @@ class PositionManager:
             'signal_factor': signal_factor,
             'confidence_factor': confidence_factor,
             'magnitude_factor': magnitude_factor,
+            'vzo_trade_action': vzo_trade_action,
         }
     
     def format_recommendation(self, position_info: Dict[str, float], 

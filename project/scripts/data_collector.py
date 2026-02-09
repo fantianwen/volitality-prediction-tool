@@ -452,6 +452,34 @@ class TechnicalIndicators:
         return stoch_rsi_k, stoch_rsi_d
 
 
+def calculate_vzo(df: pd.DataFrame, period: int = 14, ma_len: int = 9) -> tuple:
+    """
+    Volume Zone Oscillator.
+    Returns (vzo, vzo_ma) Series.
+    """
+    signed_vol = np.where(df['close'] > df['open'], df['volume'], -df['volume'])
+    vp = pd.Series(signed_vol, index=df.index).ewm(span=period, adjust=False).mean()
+    tv = df['volume'].ewm(span=period, adjust=False).mean()
+    vzo = (100 * vp / tv).fillna(0).replace([np.inf, -np.inf], 0)
+    vzo_ma = vzo.ewm(span=ma_len, adjust=False).mean()
+    return vzo, vzo_ma
+
+
+def calculate_vzo_slope(vzo: pd.Series, lookback: int = 5) -> pd.Series:
+    """Linear-regression slope of VZO over *lookback* periods."""
+    x = np.arange(lookback, dtype=float)
+    x_mean = x.mean()
+    x_var = ((x - x_mean) ** 2).sum()
+
+    def _lr_slope(window):
+        if len(window) < lookback:
+            return np.nan
+        y = window.values
+        return ((x - x_mean) * (y - y.mean())).sum() / x_var
+
+    return vzo.rolling(window=lookback).apply(_lr_slope, raw=False).fillna(0)
+
+
 class FeatureExtractor:
     """特征提取器"""
     
@@ -580,6 +608,37 @@ class FeatureExtractor:
             # 趋势方向 (+DI vs -DI)
             trend_bullish = 1 if plus_di.iloc[-1] > minus_di.iloc[-1] else 0
             
+            # 11. VZO & VZO Slope features (multi-timeframe)
+            vzo, vzo_ma = calculate_vzo(df, period=14, ma_len=9)
+            vzo_slope = calculate_vzo_slope(vzo, lookback=5)
+            slope_accel = vzo_slope.diff().fillna(0)  # 2nd derivative
+            
+            # Per-timeframe rolling z-score normalization (window=20)
+            vzo_roll_mean = vzo.rolling(20).mean().bfill()
+            vzo_roll_std = vzo.rolling(20).std().fillna(1).replace(0, 1)
+            vzo_zscore = ((vzo - vzo_roll_mean) / vzo_roll_std).fillna(0).replace([np.inf, -np.inf], 0)
+            
+            slope_roll_mean = vzo_slope.rolling(20).mean().bfill()
+            slope_roll_std = vzo_slope.rolling(20).std().fillna(1).replace(0, 1)
+            slope_zscore = ((vzo_slope - slope_roll_mean) / slope_roll_std).fillna(0).replace([np.inf, -np.inf], 0)
+            
+            # VZO zone classification: bullish (>40), bearish (<-40), neutral
+            vzo_last = vzo.iloc[-1]
+            if vzo_last > 40:
+                vzo_zone = 2  # strong bullish
+            elif vzo_last > 15:
+                vzo_zone = 1  # bullish
+            elif vzo_last > -15:
+                vzo_zone = 0  # neutral
+            elif vzo_last > -40:
+                vzo_zone = -1  # bearish
+            else:
+                vzo_zone = -2  # strong bearish
+            
+            # Slope direction sign
+            slope_last = vzo_slope.iloc[-1]
+            slope_sign = 1 if slope_last > 0 else (-1 if slope_last < 0 else 0)
+            
             # 构建特征
             tf_features = {
                 # KDJ 指标
@@ -651,6 +710,16 @@ class FeatureExtractor:
                 # Stochastic RSI
                 f'{tf}_stoch_rsi_k': stoch_rsi_k.iloc[-1],  # Stoch RSI K
                 f'{tf}_stoch_rsi_d': stoch_rsi_d.iloc[-1],  # Stoch RSI D
+                
+                # VZO & Slope features (with normalization)
+                f'{tf}_vzo': vzo.iloc[-1],                   # Raw VZO value
+                f'{tf}_vzo_ma': vzo_ma.iloc[-1],             # VZO moving average
+                f'{tf}_vzo_slope': vzo_slope.iloc[-1],       # VZO slope (linear regression)
+                f'{tf}_vzo_zscore': vzo_zscore.iloc[-1],     # VZO z-score (rolling 20-period)
+                f'{tf}_slope_zscore': slope_zscore.iloc[-1], # Slope z-score (rolling 20-period)
+                f'{tf}_slope_accel': slope_accel.iloc[-1],   # Slope acceleration (2nd derivative)
+                f'{tf}_vzo_zone': vzo_zone,                  # VZO zone (-2 to +2)
+                f'{tf}_slope_sign': slope_sign,              # Slope direction (+1/0/-1)
             }
             
             # 清洗特征值
@@ -667,6 +736,30 @@ class FeatureExtractor:
         features['multi_tf_golden_count'] = golden_count
         features['multi_tf_death_count'] = death_count
         features['signal_strength'] = golden_count - death_count  # 正数=看涨，负数=看跌
+        
+        # VZO 多周期共振特征
+        vzo_tfs = ['5m', '15m', '30m', '1h', '4h']
+        vzo_bullish_count = sum(1 for tf in vzo_tfs if features.get(f'{tf}_vzo_zone', 0) > 0)
+        vzo_bearish_count = sum(1 for tf in vzo_tfs if features.get(f'{tf}_vzo_zone', 0) < 0)
+        slope_bullish_count = sum(1 for tf in vzo_tfs if features.get(f'{tf}_slope_sign', 0) > 0)
+        slope_bearish_count = sum(1 for tf in vzo_tfs if features.get(f'{tf}_slope_sign', 0) < 0)
+        
+        features['vzo_multi_tf_bullish'] = vzo_bullish_count       # 多少个TF的VZO看涨
+        features['vzo_multi_tf_bearish'] = vzo_bearish_count       # 多少个TF的VZO看跌
+        features['vzo_multi_tf_consensus'] = vzo_bullish_count - vzo_bearish_count  # VZO多周期共识
+        features['slope_multi_tf_bullish'] = slope_bullish_count   # 多少个TF的slope看涨
+        features['slope_multi_tf_bearish'] = slope_bearish_count   # 多少个TF的slope看跌
+        features['slope_multi_tf_consensus'] = slope_bullish_count - slope_bearish_count  # Slope多周期共识
+        
+        # VZO/Slope 短期 vs 长期 divergence
+        # Short-term (5m, 15m avg) vs long-term (1h, 4h avg) VZO
+        short_vzo = np.mean([features.get(f'{tf}_vzo', 0) for tf in ['5m', '15m']])
+        long_vzo = np.mean([features.get(f'{tf}_vzo', 0) for tf in ['1h', '4h']])
+        features['vzo_short_long_diff'] = short_vzo - long_vzo    # 短期vs长期VZO差值
+        
+        short_slope = np.mean([features.get(f'{tf}_vzo_slope', 0) for tf in ['5m', '15m']])
+        long_slope = np.mean([features.get(f'{tf}_vzo_slope', 0) for tf in ['1h', '4h']])
+        features['slope_short_long_diff'] = short_slope - long_slope  # 短期vs长期slope差值
         
         # 时间特征
         now = datetime.now()

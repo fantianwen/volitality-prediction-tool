@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC Live Prediction Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0d1117;
+            min-height: 100vh;
+            color: #c9d1d9;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        /* ---- Header ---- */
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 0 24px; border-bottom: 1px solid #21262d; margin-bottom: 24px;
+        }
+        .header-left h1 { font-size: 1.5em; color: #f0f6fc; font-weight: 600; }
+        .header-left .sub { font-size: .85em; color: #8b949e; margin-top: 4px; }
+        .header-right { text-align: right; }
+        .price-big { font-size: 2.2em; font-weight: 700; color: #f0f6fc; letter-spacing: -1px; }
+        .price-label { font-size: .78em; color: #8b949e; }
+        .update-info { font-size: .75em; color: #484f58; margin-top: 6px; }
+
+        /* ---- Status dots ---- */
+        .status-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .status-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #161b22; border: 1px solid #21262d; border-radius: 20px;
+            padding: 6px 14px; font-size: .8em; color: #8b949e;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .dot-green { background: #3fb950; box-shadow: 0 0 6px rgba(63,185,80,.5); }
+        .dot-amber { background: #d29922; box-shadow: 0 0 6px rgba(210,153,34,.5); }
+        .dot-red   { background: #f85149; box-shadow: 0 0 6px rgba(248,81,73,.5); }
+
+        /* ---- Section titles ---- */
+        .section-title {
+            font-size: 1.1em; font-weight: 600; color: #f0f6fc;
+            margin: 28px 0 14px; padding-left: 10px;
+            border-left: 3px solid #58a6ff;
+        }
+
+        /* ---- Card grid ---- */
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-bottom: 20px; }
+
+        .card {
+            background: #161b22; border: 1px solid #21262d; border-radius: 12px;
+            padding: 20px; transition: border-color .2s;
+        }
+        .card:hover { border-color: #30363d; }
+        .card-label { font-size: .75em; text-transform: uppercase; letter-spacing: .06em; color: #8b949e; margin-bottom: 8px; }
+        .card-value { font-size: 1.9em; font-weight: 700; color: #f0f6fc; line-height: 1.1; }
+        .card-extra { font-size: .8em; color: #484f58; margin-top: 6px; }
+        .card-badge {
+            display: inline-block; font-size: .7em; padding: 2px 10px; border-radius: 10px;
+            font-weight: 600; margin-top: 8px;
+        }
+
+        /* Color classes */
+        .c-green  { color: #3fb950; }
+        .c-red    { color: #f85149; }
+        .c-blue   { color: #58a6ff; }
+        .c-amber  { color: #d29922; }
+        .c-purple { color: #bc8cff; }
+        .bg-green  { background: rgba(63,185,80,.15); color: #3fb950; }
+        .bg-red    { background: rgba(248,81,73,.15); color: #f85149; }
+        .bg-blue   { background: rgba(88,166,255,.15); color: #58a6ff; }
+        .bg-amber  { background: rgba(210,153,34,.15); color: #d29922; }
+        .bg-purple { background: rgba(188,140,255,.15); color: #bc8cff; }
+
+        .card-direction {
+            border-left: 4px solid #3fb950; /* overridden by JS */
+        }
+
+        /* ---- VZO table ---- */
+        .vzo-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .vzo-table th, .vzo-table td {
+            padding: 10px 14px; text-align: left; font-size: .88em;
+            border-bottom: 1px solid #21262d;
+        }
+        .vzo-table th { color: #8b949e; font-weight: 600; font-size: .75em; text-transform: uppercase; letter-spacing: .04em; }
+        .vzo-table tr:hover td { background: rgba(255,255,255,.02); }
+        .zone-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: .8em; font-weight: 600;
+        }
+        .zone-Overbought { background: rgba(248,81,73,.15); color: #f85149; }
+        .zone-Bullish    { background: rgba(63,185,80,.15); color: #3fb950; }
+        .zone-Neutral    { background: rgba(139,148,158,.15); color: #8b949e; }
+        .zone-Bearish    { background: rgba(210,153,34,.15); color: #d29922; }
+        .zone-Oversold   { background: rgba(188,140,255,.15); color: #bc8cff; }
+
+        /* ---- Model info ---- */
+        .model-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .model-item {
+            background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 14px 16px;
+        }
+        .model-item h4 { font-size: .82em; color: #58a6ff; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+        .model-item .row { font-size: .82em; color: #8b949e; margin-bottom: 3px; }
+        .model-item .row span { color: #c9d1d9; }
+
+        /* ---- Timing ---- */
+        .timing { font-size: .75em; color: #484f58; text-align: right; margin-bottom: 20px; }
+
+        /* ---- Loading / Error ---- */
+        .loading-wrap { text-align: center; padding: 60px 0; color: #484f58; }
+        .spinner {
+            display: inline-block; width: 28px; height: 28px;
+            border: 3px solid #21262d; border-top-color: #58a6ff;
+            border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-msg { color: #f85149; font-size: .9em; margin: 12px 0; }
+
+        /* ---- 4h boundary highlight ---- */
+        .boundary-banner {
+            background: rgba(88,166,255,.1); border: 1px solid rgba(88,166,255,.3);
+            border-radius: 10px; padding: 10px 16px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px; font-size: .88em;
+        }
+        .boundary-banner .star { font-size: 1.2em; }
+        .boundary-banner .text { color: #58a6ff; }
+        .boundary-banner.hidden { display: none; }
+
+        /* ---- Refresh button ---- */
+        .btn-refresh {
+            background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+            border-radius: 8px; padding: 6px 16px; font-size: .82em; cursor: pointer;
+            transition: background .15s;
+        }
+        .btn-refresh:hover { background: #30363d; }
+        .btn-refresh:disabled { opacity: .4; cursor: not-allowed; }
+
+        /* ---- History table ---- */
+        .history-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: .82em; }
+        .history-table th, .history-table td {
+            padding: 8px 12px; text-align: left; border-bottom: 1px solid #21262d;
+        }
+        .history-table th { color: #8b949e; font-weight: 600; font-size: .75em; text-transform: uppercase; }
+        .history-table tr:hover td { background: rgba(255,255,255,.02); }
+        .history-table .row-4h { background: rgba(88,166,255,.06); }
+        .history-table .tag-4h {
+            display: inline-block; font-size: .7em; padding: 1px 6px; border-radius: 6px;
+            background: rgba(88,166,255,.2); color: #58a6ff; font-weight: 600; margin-left: 6px;
+        }
+
+        .footer { text-align: center; color: #30363d; font-size: .75em; padding: 24px 0; border-top: 1px solid #21262d; margin-top: 20px; }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .header-right { text-align: left; }
+            .price-big { font-size: 1.6em; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <h1>BTC Live Prediction</h1>
+            <div class="sub">Direction + 2h Volatility Models &middot; Predicts at each 1h candle close</div>
+        </div>
+        <div class="header-right">
+            <div class="price-label">BTCUSDT</div>
+            <div class="price-big" id="currentPrice">--</div>
+            <div class="update-info">
+                Candle: <span id="candleTime">--</span>
+                &middot; Updated: <span id="updateTime">--</span>
+                &middot; <button class="btn-refresh" id="btnRefresh" onclick="manualRefresh()">Refresh Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4h boundary banner -->
+    <div class="boundary-banner hidden" id="boundaryBanner">
+        <span class="star">&#9733;</span>
+        <span class="text"><strong>4H Boundary Prediction</strong> &mdash; All timeframe features (including 4h KDJ, RSI, MACD, VZO) have refreshed. This is the highest-confidence prediction.</span>
+    </div>
+
+    <!-- Status -->
+    <div class="status-row" id="statusRow"></div>
+
+    <!-- Direction Prediction -->
+    <div class="section-title">Direction Prediction</div>
+    <div class="cards" id="dirCards">
+        <div class="loading-wrap"><div class="spinner"></div><br>Waiting for first prediction...</div>
+    </div>
+
+    <!-- Volatility Predictions -->
+    <div class="section-title">2-Hour Volatility Prediction</div>
+    <div class="cards" id="volCards">
+        <div class="loading-wrap"><div class="spinner"></div><br>Loading...</div>
+    </div>
+
+    <!-- VZO Multi-TF -->
+    <div class="section-title">Multi-Timeframe VZO / Slope</div>
+    <div id="vzoPanel">
+        <div class="loading-wrap"><div class="spinner"></div><br>Loading...</div>
+    </div>
+
+    <!-- Prediction History -->
+    <div class="section-title">Prediction History</div>
+    <div id="historyPanel">
+        <div class="loading-wrap"><div class="spinner"></div><br>Loading...</div>
+    </div>
+
+    <!-- Model Info -->
+    <div class="section-title">Model Info</div>
+    <div class="model-grid" id="modelInfo">
+        <div class="loading-wrap"><div class="spinner"></div><br>Loading...</div>
+    </div>
+
+    <div class="timing" id="timingInfo"></div>
+
+    <div class="footer">
+        Predictions run at each 1h candle close (HH:01 UTC) &middot; 4h boundaries highlighted &middot; BTC Live Prediction Dashboard
+    </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const MODEL_LABELS = {
+    rf: 'Random Forest', gbm: 'Gradient Boosting', ridge: 'Ridge',
+    rf_cls: 'Random Forest', gbm_cls: 'Gradient Boosting', logistic: 'Logistic Regression'
+};
+const ml = n => MODEL_LABELS[n] || n;
+
+function dirColor(dir) {
+    if (dir === 'Bullish') return 'green';
+    if (dir === 'Bearish') return 'red';
+    return 'amber';
+}
+
+function renderStatus(models) {
+    const names = ['direction', 'vol_regression', 'range_regression', 'vol_classifier'];
+    const labels = ['Direction', 'Vol Regression', 'Range Regression', 'Vol Classifier'];
+    let html = '';
+    names.forEach((n, i) => {
+        const ok = models && models[n];
+        html += `<span class="status-pill">
+            <span class="dot ${ok ? 'dot-green' : 'dot-red'}"></span>
+            ${labels[i]}: ${ok ? ok.model_name : 'not loaded'}
+        </span>`;
+    });
+    $('statusRow').innerHTML = html;
+}
+
+function renderPrediction(data) {
+    const p = data.predictions;
+
+    // Price & timestamps
+    $('currentPrice').textContent = '$' + data.current_price.toLocaleString();
+    $('updateTime').textContent = new Date(data.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Shanghai' });
+    if (data.candle_timestamp) {
+        const ct = new Date(data.candle_timestamp);
+        $('candleTime').textContent = ct.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+    }
+
+    // 4h boundary banner
+    const banner = $('boundaryBanner');
+    if (data.is_4h_boundary) {
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+    }
+
+    // Direction
+    const dir = p.direction;
+    if (dir) {
+        const dc = dirColor(dir.direction);
+        const arrow = dir.direction === 'Bullish' ? '&#9650;' : (dir.direction === 'Bearish' ? '&#9660;' : '&#9654;');
+        $('dirCards').innerHTML = `
+            <div class="card card-direction" style="border-left-color: var(--c);" data-dir="${dc}">
+                <div class="card-label">Direction</div>
+                <div class="card-value c-${dc}">${arrow} ${dir.direction}</div>
+                <div class="card-extra">Model: ${ml(dir.model)}</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Predicted Change</div>
+                <div class="card-value ${dir.price_change_pct >= 0 ? 'c-green' : 'c-red'}">${dir.price_change_pct >= 0 ? '+' : ''}${dir.price_change_pct.toFixed(3)}%</div>
+                <div class="card-extra">over next ~20 hours</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Predicted Price</div>
+                <div class="card-value c-blue">$${dir.predicted_price.toLocaleString()}</div>
+                <div class="card-extra">from $${data.current_price.toLocaleString()}</div>
+            </div>`;
+        // fix the CSS var
+        const dirCard = document.querySelector('.card-direction');
+        const colors = {green:'#3fb950', red:'#f85149', amber:'#d29922'};
+        if (dirCard) dirCard.style.borderLeftColor = colors[dc] || '#3fb950';
+    } else {
+        $('dirCards').innerHTML = '<div class="card"><div class="card-label">Direction</div><div class="card-value" style="font-size:1em;color:#484f58;">Model not loaded</div></div>';
+    }
+
+    // Volatility
+    let volHtml = '';
+
+    const vr = p.vol_regression;
+    if (vr) {
+        const volBp = (vr.realized_vol * 10000).toFixed(2);
+        volHtml += `<div class="card">
+            <div class="card-label">Realized Vol (2h)</div>
+            <div class="card-value c-purple">${vr.realized_vol.toFixed(6)}</div>
+            <div class="card-extra">${volBp} basis points &middot; ${ml(vr.model)}</div>
+        </div>`;
+    }
+
+    const rr = p.range_regression;
+    if (rr) {
+        volHtml += `<div class="card">
+            <div class="card-label">Expected 2h Range</div>
+            <div class="card-value c-amber">${rr.range_pct.toFixed(2)}%</div>
+            <div class="card-extra">~$${rr.range_usd.toLocaleString()} &middot; ${ml(rr.model)}</div>
+        </div>`;
+    }
+
+    const vc = p.vol_classifier;
+    if (vc) {
+        const isHigh = vc.class_int === 1;
+        const cc = isHigh ? 'red' : 'green';
+        const probStr = vc.probability ? (vc.probability * 100).toFixed(1) + '% confidence' : '';
+        volHtml += `<div class="card">
+            <div class="card-label">Vol Regime (2h)</div>
+            <div class="card-value c-${cc}">${vc.class}</div>
+            <div class="card-badge bg-${cc}">${isHigh ? 'HIGH VOL' : 'LOW VOL'}</div>
+            <div class="card-extra">${probStr} ${probStr ? '&middot; ' : ''}${ml(vc.model)}</div>
+        </div>`;
+    }
+
+    if (!volHtml) {
+        volHtml = '<div class="card"><div class="card-value" style="font-size:1em;color:#484f58;">Volatility models not loaded</div></div>';
+    }
+    $('volCards').innerHTML = volHtml;
+
+    // VZO panel
+    const vzoR = data.vzo_readings;
+    if (vzoR && vzoR.length) {
+        let thtml = '<table class="vzo-table"><thead><tr><th>Timeframe</th><th>VZO</th><th>VZO MA</th><th>Slope</th><th>Zone</th></tr></thead><tbody>';
+        vzoR.forEach(r => {
+            const slopeColor = r.slope > 0 ? 'c-green' : (r.slope < 0 ? 'c-red' : '');
+            thtml += `<tr>
+                <td style="font-weight:600">${r.tf}</td>
+                <td>${r.vzo !== null ? r.vzo.toFixed(2) : '--'}</td>
+                <td>${r.vzo_ma !== undefined ? r.vzo_ma.toFixed(2) : '--'}</td>
+                <td class="${slopeColor}">${r.slope !== null ? r.slope.toFixed(3) : '--'}</td>
+                <td><span class="zone-badge zone-${r.zone}">${r.zone}</span></td>
+            </tr>`;
+        });
+        thtml += '</tbody></table>';
+        $('vzoPanel').innerHTML = thtml;
+    }
+
+    // Timing
+    const t = data.timing;
+    if (t) {
+        $('timingInfo').textContent = `Fetch: ${t.fetch_s}s | Features: ${t.features_s}s | Inference: ${t.inference_s}s | Total: ${t.total_s}s`;
+    }
+}
+
+function renderModelInfo(statusData) {
+    const m = statusData.models;
+    const tr = statusData.training_results || {};
+    let html = '';
+
+    // Direction
+    if (m.direction) {
+        const dr = tr.direction;
+        const bestMetrics = dr ? dr[m.direction.model_name] : null;
+        html += `<div class="model-item">
+            <h4>Direction Model</h4>
+            <div class="row">File: <span>${m.direction.file}</span></div>
+            <div class="row">Algorithm: <span>${ml(m.direction.model_name)}</span></div>
+            <div class="row">Features: <span>${m.direction.feature_count}</span></div>
+            ${bestMetrics ? `<div class="row">Dir Accuracy: <span>${(bestMetrics.direction_accuracy * 100).toFixed(1)}%</span></div>
+            <div class="row">Sharpe: <span>${bestMetrics.sharpe_ratio.toFixed(2)}</span></div>` : ''}
+        </div>`;
+    }
+
+    // Vol models
+    ['vol_regression', 'range_regression', 'vol_classifier'].forEach(key => {
+        if (!m[key]) return;
+        const labels = {
+            vol_regression: 'Vol Regression (2h)',
+            range_regression: 'Range Regression (2h)',
+            vol_classifier: 'Vol Classifier (2h)',
+        };
+        const vr = tr.volatility;
+        let metricsHtml = '';
+        if (vr) {
+            const section = vr[key];
+            if (section) {
+                const sm = section[m[key].model_name];
+                if (sm) {
+                    if (sm.correlation !== undefined) {
+                        metricsHtml += `<div class="row">Correlation: <span>${sm.correlation.toFixed(4)}</span></div>`;
+                        metricsHtml += `<div class="row">R&sup2;: <span>${sm.r2.toFixed(4)}</span></div>`;
+                    }
+                    if (sm.accuracy !== undefined) {
+                        metricsHtml += `<div class="row">Accuracy: <span>${(sm.accuracy * 100).toFixed(1)}%</span></div>`;
+                        metricsHtml += `<div class="row">High-Vol Prec: <span>${(sm.high_vol_precision * 100).toFixed(1)}%</span></div>`;
+                    }
+                }
+            }
+        }
+        html += `<div class="model-item">
+            <h4>${labels[key]}</h4>
+            <div class="row">File: <span>${m[key].file}</span></div>
+            <div class="row">Algorithm: <span>${ml(m[key].model_name)}</span></div>
+            <div class="row">Features: <span>${m[key].feature_count}</span></div>
+            ${metricsHtml}
+        </div>`;
+    });
+
+    $('modelInfo').innerHTML = html || '<div style="color:#484f58">No models loaded</div>';
+}
+
+// ---- History rendering ----
+function renderHistory(historyData) {
+    const preds = historyData.predictions;
+    if (!preds || !preds.length) {
+        $('historyPanel').innerHTML = '<div style="color:#484f58;font-size:.85em">No prediction history yet. History accumulates as 1h candle predictions run.</div>';
+        return;
+    }
+    let html = '<table class="history-table"><thead><tr><th>Candle (UTC)</th><th>Price</th><th>Direction</th><th>Change</th><th>2h Range</th><th>Vol Regime</th></tr></thead><tbody>';
+    preds.forEach(p => {
+        const is4h = p.is_4h_boundary;
+        const ct = p.candle_timestamp ? new Date(p.candle_timestamp).toISOString().slice(0, 16).replace('T', ' ') : '--';
+        const dir = p.predictions.direction;
+        const rng = p.predictions.range_regression;
+        const vc = p.predictions.vol_classifier;
+        const dirStr = dir ? dir.direction : '--';
+        const dirColor = dir ? (dir.direction === 'Bullish' ? 'c-green' : (dir.direction === 'Bearish' ? 'c-red' : 'c-amber')) : '';
+        const chgStr = dir ? `${dir.price_change_pct >= 0 ? '+' : ''}${dir.price_change_pct.toFixed(3)}%` : '--';
+        const rngStr = rng ? `${rng.range_pct.toFixed(2)}%` : '--';
+        const vcStr = vc ? vc.class.replace(' Volatility', '') : '--';
+        const vcColor = vc ? (vc.class_int === 1 ? 'c-red' : 'c-green') : '';
+
+        html += `<tr class="${is4h ? 'row-4h' : ''}">
+            <td>${ct}${is4h ? '<span class="tag-4h">4H</span>' : ''}</td>
+            <td>$${p.current_price.toLocaleString()}</td>
+            <td class="${dirColor}" style="font-weight:600">${dirStr}</td>
+            <td class="${dirColor}">${chgStr}</td>
+            <td>${rngStr}</td>
+            <td class="${vcColor}">${vcStr}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    $('historyPanel').innerHTML = html;
+}
+
+// ---- Main fetch loop ----
+let isLoading = false;
+
+async function fetchPrediction() {
+    if (isLoading) return;
+    isLoading = true;
+    try {
+        const res = await fetch('/api/predict');
+        const data = await res.json();
+        if (data.success) {
+            renderPrediction(data);
+        } else {
+            $('dirCards').innerHTML = `<div class="error-msg">Error: ${data.error}</div>`;
+        }
+    } catch (e) {
+        console.error('Predict error:', e);
+        $('dirCards').innerHTML = `<div class="error-msg">Network error: ${e.message}</div>`;
+    }
+    isLoading = false;
+}
+
+async function fetchHistory() {
+    try {
+        const res = await fetch('/api/predict/history');
+        const data = await res.json();
+        if (data.success) renderHistory(data);
+    } catch (e) {
+        console.error('History error:', e);
+    }
+}
+
+async function manualRefresh() {
+    const btn = $('btnRefresh');
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+    try {
+        const res = await fetch('/api/predict/now');
+        const data = await res.json();
+        if (data.success) {
+            renderPrediction(data);
+            fetchHistory();
+        } else {
+            alert('Prediction error: ' + data.error);
+        }
+    } catch (e) {
+        alert('Network error: ' + e.message);
+    }
+    btn.disabled = false;
+    btn.textContent = 'Refresh Now';
+}
+
+async function fetchStatus() {
+    try {
+        const res = await fetch('/api/model-status');
+        const data = await res.json();
+        if (data.success) {
+            renderStatus(data.models);
+            renderModelInfo(data);
+        }
+    } catch (e) {
+        console.error('Status error:', e);
+    }
+}
+
+// Init
+fetchStatus();
+fetchPrediction();
+fetchHistory();
+
+// Auto-refresh: poll cached prediction every 30s (lightweight),
+// history every 2 min, status every 5 min
+setInterval(fetchPrediction, 30 * 1000);
+setInterval(fetchHistory, 2 * 60 * 1000);
+setInterval(fetchStatus, 5 * 60 * 1000);
+</script>
+</body>
+</html>

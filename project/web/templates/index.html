@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BTC Price Prediction Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <style>
         * {
             margin: 0;
@@ -315,6 +317,227 @@
         input:checked + .slider:before {
             transform: translateX(26px);
         }
+
+        /* VZO Chart Styles */
+        .vzo-card {
+            grid-column: 1 / -1;
+        }
+
+        .vzo-chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 15px;
+        }
+
+        .vzo-signal {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 10px;
+        }
+
+        .vzo-signal-icon {
+            font-size: 2em;
+        }
+
+        .vzo-signal-info {
+            flex: 1;
+        }
+
+        .vzo-signal-direction {
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .vzo-signal-direction.long {
+            color: #10b981;
+        }
+
+        .vzo-signal-direction.short {
+            color: #ef4444;
+        }
+
+        .vzo-signal-direction.neutral {
+            color: #6b7280;
+        }
+
+        .vzo-signal-reason {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .vzo-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .vzo-metric {
+            text-align: center;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .vzo-metric-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .vzo-metric-value {
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+
+        .vzo-metric-value.positive {
+            color: #10b981;
+        }
+
+        .vzo-metric-value.negative {
+            color: #ef4444;
+        }
+
+        .vzo-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .vzo-controls select, .vzo-controls input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .vzo-controls label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        /* Trade Action Badges */
+        .trade-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .trade-badge-enter {
+            background: #10b981;
+            color: white;
+        }
+        .trade-badge-exit {
+            background: #ef4444;
+            color: white;
+        }
+        .trade-badge-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        .trade-badge-hold {
+            background: #6b7280;
+            color: white;
+        }
+
+        /* Trade Action Card */
+        .trade-action-card {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+        }
+        .trade-action-card .card-title {
+            color: white;
+        }
+        .trade-action-large {
+            font-size: 2.2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .trade-action-reason {
+            font-size: 0.95em;
+            opacity: 0.85;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+        .trade-action-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .trade-action-meta-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.85em;
+        }
+        .trade-action-meta-label {
+            opacity: 0.7;
+            font-size: 0.85em;
+        }
+        .trade-action-meta-value {
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* Trade Alert Toast */
+        .trade-alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1em;
+            z-index: 9999;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 4.5s forwards;
+            max-width: 400px;
+        }
+        .trade-alert-enter { background: linear-gradient(135deg, #10b981, #059669); }
+        .trade-alert-exit { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .trade-alert-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+        .trade-alert-reason {
+            font-size: 0.8em;
+            font-weight: 400;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* History table with VZO columns */
+        .history-vzo-col {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 0.85em;
+            margin-top: 4px;
+        }
+        .history-vzo-val {
+            font-family: monospace;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -331,7 +554,7 @@
             <div class="auto-refresh">
                 <label style="color: white; cursor: pointer;">
                     <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
-                    <span>Auto Refresh (30s)</span>
+                    <span>Auto Refresh (60s)</span>
                 </label>
             </div>
         </div>
@@ -394,6 +617,82 @@
                 </div>
             </div>
 
+            <!-- Trade Action Card -->
+            <div class="card trade-action-card">
+                <div class="card-header">
+                    <div class="card-title">🎯 Trade Signal (VZO/Slope)</div>
+                    <div class="card-icon">⚡</div>
+                </div>
+                <div id="tradeActionContent">
+                    <div class="loading" style="color: rgba(255,255,255,0.7);">Waiting for data...</div>
+                </div>
+            </div>
+
+            <!-- VZO Indicator Card -->
+            <div class="card vzo-card">
+                <div class="card-header">
+                    <div class="card-title">📊 VZO Slope Indicator (15min)</div>
+                    <div class="card-icon">📈</div>
+                </div>
+                
+                <!-- Signal Display -->
+                <div class="vzo-signal" id="vzoSignal">
+                    <div class="vzo-signal-icon">⏳</div>
+                    <div class="vzo-signal-info">
+                        <div class="vzo-signal-direction">Loading...</div>
+                        <div class="vzo-signal-reason">Fetching VZO data...</div>
+                    </div>
+                </div>
+                
+                <!-- Metrics -->
+                <div class="vzo-metrics" style="grid-template-columns: repeat(5, 1fr);">
+                    <div class="vzo-metric">
+                        <div class="vzo-metric-label">VZO Value</div>
+                        <div class="vzo-metric-value" id="vzoValue">--</div>
+                    </div>
+                    <div class="vzo-metric">
+                        <div class="vzo-metric-label">Slope (15min)</div>
+                        <div class="vzo-metric-value" id="vzoSlope">--</div>
+                    </div>
+                    <div class="vzo-metric">
+                        <div class="vzo-metric-label">Signal Strength</div>
+                        <div class="vzo-metric-value" id="vzoStrength">--</div>
+                    </div>
+                    <div class="vzo-metric">
+                        <div class="vzo-metric-label">Slope Accel</div>
+                        <div class="vzo-metric-value" id="vzoAccel">--</div>
+                    </div>
+                    <div class="vzo-metric">
+                        <div class="vzo-metric-label">Cross</div>
+                        <div class="vzo-metric-value" id="vzoCross">--</div>
+                    </div>
+                </div>
+                
+                <!-- Controls -->
+                <div class="vzo-controls">
+                    <label>
+                        Slope Threshold:
+                        <input type="number" id="slopeThreshold" value="1.5" min="0.5" max="5" step="0.5" style="width: 70px;">
+                    </label>
+                    <label>
+                        Lookback:
+                        <select id="slopeLookback">
+                            <option value="3">3 bars</option>
+                            <option value="5" selected>5 bars</option>
+                            <option value="10">10 bars</option>
+                        </select>
+                    </label>
+                    <button class="btn" onclick="loadVZOData()" style="padding: 8px 15px; font-size: 0.9em;">
+                        🔄 Refresh
+                    </button>
+                </div>
+                
+                <!-- Chart -->
+                <div class="vzo-chart-container">
+                    <canvas id="vzoChart"></canvas>
+                </div>
+            </div>
+
             <!-- Prediction History Card -->
             <div class="card history-card">
                 <div class="card-header">
@@ -409,11 +708,16 @@
 
     <script>
         let autoRefreshInterval = null;
+        let vzoChart = null;
+        let vzoRefreshInterval = null;
 
         // 页面加载时执行预测
         window.onload = function() {
             runPrediction();
             loadHistory();
+            loadVZOData();
+            // Auto-refresh VZO every 60 seconds
+            vzoRefreshInterval = setInterval(loadVZOData, 60000);
         };
 
         function showError(message) {
@@ -548,16 +852,38 @@
 
             // Update Position Card
             const positionContent = document.getElementById('positionContent');
-            if (data.position_recommendation && data.position_recommendation.recommendation !== 'no_trade') {
+            if (data.position_recommendation && data.position_recommendation.recommendation === 'exit') {
+                // VZO EXIT override
+                positionContent.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 2em; margin-bottom: 10px;">🔴</div>
+                        <div style="font-size: 1.4em; font-weight: bold;">EXIT POSITION</div>
+                        <div style="margin-top: 10px; font-size: 0.95em; opacity: 0.9;">
+                            ${data.position_recommendation.reason}
+                        </div>
+                        <div style="margin-top: 12px;">
+                            <span class="trade-badge trade-badge-exit" style="font-size: 1em; padding: 6px 16px;">VZO MOMENTUM REVERSAL</span>
+                        </div>
+                    </div>
+                `;
+            } else if (data.position_recommendation && data.position_recommendation.recommendation !== 'no_trade') {
                 const pos = data.position_recommendation;
                 const recBadge = pos.recommendation === 'strong' ? 'badge-success' :
                                pos.recommendation === 'moderate' ? 'badge-warning' : 'badge-info';
+
+                // VZO trade action sub-badge
+                let vzoBadge = '';
+                if (pos.vzo_trade_action && pos.vzo_trade_action !== 'HOLD') {
+                    const vzoClass = { 'ENTER': 'trade-badge-enter', 'WARNING': 'trade-badge-warning' }[pos.vzo_trade_action] || 'trade-badge-hold';
+                    vzoBadge = `<span class="trade-badge ${vzoClass}" style="margin-left: 6px;">${pos.vzo_trade_action}</span>`;
+                }
                 
                 positionContent.innerHTML = `
                     <div class="position-large">${(pos.position_size * 100).toFixed(1)}%</div>
                     <div style="margin: 10px 0; font-size: 1.2em;">Leverage: ${pos.leverage.toFixed(1)}x</div>
                     <div style="margin: 15px 0;">
                         <span class="badge ${recBadge}">${pos.recommendation.toUpperCase()}</span>
+                        ${vzoBadge}
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Risk Score</span>
@@ -604,8 +930,97 @@
                 </div>
             `;
 
+            // Update Trade Action Card
+            updateTradeActionCard(data);
+
             // Load history after update
             loadHistory();
+        }
+
+        function updateTradeActionCard(data) {
+            const content = document.getElementById('tradeActionContent');
+            const ts = data.trade_signal;
+            const vzo = data.vzo_15m;
+
+            if (!ts || !ts.action) {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 20px; opacity: 0.7;">
+                        <div style="font-size: 1.5em; margin-bottom: 8px;">⏳</div>
+                        <div>No VZO data yet</div>
+                    </div>`;
+                return;
+            }
+
+            const actionColors = {
+                'ENTER': '#10b981',
+                'EXIT': '#ef4444',
+                'WARNING': '#f59e0b',
+                'HOLD': '#6b7280'
+            };
+            const actionEmojis = {
+                'ENTER': '🟢',
+                'EXIT': '🔴',
+                'WARNING': '🟡',
+                'HOLD': '⚪'
+            };
+
+            const color = actionColors[ts.action] || '#6b7280';
+            const emoji = actionEmojis[ts.action] || '⚪';
+
+            content.innerHTML = `
+                <div class="trade-action-large" style="color: ${color};">
+                    ${emoji} ${ts.action}
+                </div>
+                <div class="trade-action-reason">${ts.reason}</div>
+                <div class="trade-action-meta">
+                    <div class="trade-action-meta-item">
+                        <div class="trade-action-meta-label">Urgency</div>
+                        <div class="trade-action-meta-value">${(ts.urgency * 100).toFixed(0)}%</div>
+                    </div>
+                    <div class="trade-action-meta-item">
+                        <div class="trade-action-meta-label">Slope Accel</div>
+                        <div class="trade-action-meta-value">${ts.slope_acceleration || '0.000'}</div>
+                    </div>
+                    <div class="trade-action-meta-item">
+                        <div class="trade-action-meta-label">VZO (15m)</div>
+                        <div class="trade-action-meta-value" style="color: ${vzo && vzo.vzo >= 0 ? '#4ade80' : '#f87171'}">
+                            ${vzo ? vzo.vzo.toFixed(1) : '--'}
+                        </div>
+                    </div>
+                    <div class="trade-action-meta-item">
+                        <div class="trade-action-meta-label">Slope (15m)</div>
+                        <div class="trade-action-meta-value" style="color: ${vzo && vzo.slope >= 0 ? '#4ade80' : '#f87171'}">
+                            ${vzo ? vzo.slope.toFixed(2) : '--'}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Show alert toast for ENTER, EXIT, WARNING
+            if (ts.action !== 'HOLD') {
+                showTradeAlert(ts.action, ts.reason);
+            }
+        }
+
+        function showTradeAlert(action, reason) {
+            // Remove existing alerts
+            document.querySelectorAll('.trade-alert').forEach(el => el.remove());
+
+            const alertClass = {
+                'ENTER': 'trade-alert-enter',
+                'EXIT': 'trade-alert-exit',
+                'WARNING': 'trade-alert-warning'
+            }[action] || '';
+
+            const emoji = { 'ENTER': '🟢', 'EXIT': '🔴', 'WARNING': '⚠️' }[action] || '';
+
+            const div = document.createElement('div');
+            div.className = `trade-alert ${alertClass}`;
+            div.innerHTML = `${emoji} Trade Signal: ${action}<div class="trade-alert-reason">${reason}</div>`;
+            document.body.appendChild(div);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => div.remove(), 5000);
         }
 
         function loadHistory() {
@@ -623,19 +1038,48 @@
                     let html = '';
                     data.history.slice().reverse().forEach(item => {
                         const changeClass = getDirectionClass(item.direction);
+
+                        // Trade action badge
+                        let tradeBadge = '';
+                        if (item.trade_action) {
+                            const badgeClass = {
+                                'ENTER': 'trade-badge-enter',
+                                'EXIT': 'trade-badge-exit',
+                                'WARNING': 'trade-badge-warning',
+                                'HOLD': 'trade-badge-hold'
+                            }[item.trade_action] || 'trade-badge-hold';
+                            tradeBadge = `<span class="trade-badge ${badgeClass}">${item.trade_action}</span>`;
+                        }
+
+                        // VZO/Slope info
+                        let vzoInfo = '';
+                        if (item.vzo_15m != null) {
+                            const vzoColor = item.vzo_15m >= 0 ? '#10b981' : '#ef4444';
+                            const slopeColor = (item.slope_15m || 0) >= 0 ? '#10b981' : '#ef4444';
+                            const slopeArrow = (item.slope_15m || 0) >= 0 ? '▲' : '▼';
+                            vzoInfo = `
+                                <div class="history-vzo-col">
+                                    <span class="history-vzo-val" style="color:${vzoColor}">VZO: ${item.vzo_15m.toFixed(1)}</span>
+                                    <span class="history-vzo-val" style="color:${slopeColor}">${slopeArrow} ${(item.slope_15m || 0).toFixed(2)}</span>
+                                </div>
+                            `;
+                        }
+
                         html += `
-                            <div class="history-item">
-                                <div>
+                            <div class="history-item" style="flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 160px;">
                                     <div style="font-weight: 600;">${item.direction} ${item.prediction_pct >= 0 ? '+' : ''}${item.prediction_pct.toFixed(2)}%</div>
                                     <div class="history-time">${formatTime(item.timestamp)}</div>
+                                    ${vzoInfo}
                                 </div>
-                                <div style="text-align: right;">
+                                <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                                     <div class="badge ${changeClass === 'positive' ? 'badge-success' : changeClass === 'negative' ? 'badge-danger' : 'badge-info'}">
                                         ${item.confidence.toFixed(0)}%
                                     </div>
-                                    <div style="font-size: 0.85em; margin-top: 5px; color: #666;">
+                                    <div style="font-size: 0.85em; color: #666;">
                                         Signal: ${item.signal_strength > 0 ? '+' : ''}${item.signal_strength.toFixed(1)}
                                     </div>
+                                    ${tradeBadge}
                                 </div>
                             </div>
                         `;
@@ -652,13 +1096,302 @@
             if (checkbox.checked) {
                 autoRefreshInterval = setInterval(() => {
                     runPrediction();
-                }, 30000); // 30 seconds
+                }, 60000); // 60 seconds
             } else {
                 if (autoRefreshInterval) {
                     clearInterval(autoRefreshInterval);
                     autoRefreshInterval = null;
                 }
             }
+        }
+
+        // ============ VZO Functions ============
+
+        function loadVZOData() {
+            const threshold = document.getElementById('slopeThreshold').value;
+            const lookback = document.getElementById('slopeLookback').value;
+            
+            const url = `/api/vzo?interval=15m&limit=100&slope_threshold=${threshold}&slope_lookback=${lookback}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('VZO fetch error:', data.error);
+                        return;
+                    }
+                    updateVZODisplay(data);
+                    renderVZOChart(data);
+                })
+                .catch(error => {
+                    console.error('VZO network error:', error);
+                });
+        }
+
+        function updateVZODisplay(data) {
+            const current = data.current;
+            
+            // Update signal display
+            const signalEl = document.getElementById('vzoSignal');
+            let signalIcon, signalClass;
+            
+            if (current.signal === 'LONG') {
+                signalIcon = '🟢';
+                signalClass = 'long';
+            } else if (current.signal === 'SHORT') {
+                signalIcon = '🔴';
+                signalClass = 'short';
+            } else {
+                signalIcon = '⚪';
+                signalClass = 'neutral';
+            }
+
+            // Add cross/zone warning info to reason
+            let extraInfo = '';
+            if (current.slope_crossed) {
+                const crossEmoji = current.cross_direction === 'bullish' ? '🔼' : '🔽';
+                extraInfo += ` | ${crossEmoji} Slope crossed ${current.cross_direction}`;
+            }
+            if (current.zone_warning) {
+                extraInfo += ' | ⚠️ Zone warning';
+            }
+            
+            signalEl.innerHTML = `
+                <div class="vzo-signal-icon">${signalIcon}</div>
+                <div class="vzo-signal-info">
+                    <div class="vzo-signal-direction ${signalClass}">${current.signal}</div>
+                    <div class="vzo-signal-reason">${current.reason}${extraInfo}</div>
+                </div>
+            `;
+            
+            // Update metrics
+            const vzoValue = document.getElementById('vzoValue');
+            const vzoSlope = document.getElementById('vzoSlope');
+            const vzoStrength = document.getElementById('vzoStrength');
+            const vzoAccel = document.getElementById('vzoAccel');
+            const vzoCross = document.getElementById('vzoCross');
+            
+            vzoValue.textContent = current.vzo.toFixed(1);
+            vzoValue.className = 'vzo-metric-value ' + (current.vzo >= 0 ? 'positive' : 'negative');
+            
+            vzoSlope.textContent = current.slope.toFixed(2);
+            vzoSlope.className = 'vzo-metric-value ' + (current.slope >= 0 ? 'positive' : 'negative');
+            
+            const strengthPct = (current.signal_strength * 100).toFixed(0) + '%';
+            vzoStrength.textContent = strengthPct;
+
+            // Slope acceleration
+            const accelVal = current.slope_acceleration || 0;
+            vzoAccel.textContent = accelVal.toFixed(3);
+            vzoAccel.className = 'vzo-metric-value ' + (accelVal >= 0 ? 'positive' : 'negative');
+
+            // Cross detection
+            if (current.slope_crossed) {
+                vzoCross.textContent = current.cross_direction === 'bullish' ? '▲ Bull' : '▼ Bear';
+                vzoCross.className = 'vzo-metric-value ' + (current.cross_direction === 'bullish' ? 'positive' : 'negative');
+            } else {
+                vzoCross.textContent = '—';
+                vzoCross.className = 'vzo-metric-value';
+            }
+        }
+
+        function renderVZOChart(data) {
+            const ctx = document.getElementById('vzoChart').getContext('2d');
+            
+            // Prepare data
+            const labels = data.data.map(d => new Date(d.timestamp));
+            const vzoData = data.data.map(d => d.vzo);
+            const vzoMaData = data.data.map(d => d.vzo_ma);
+            const slopeData = data.data.map(d => d.slope ? d.slope * 10 : null); // Scale slope for visibility
+            
+            // Find signal points
+            const longPoints = [];
+            const shortPoints = [];
+            
+            data.data.forEach((d, i) => {
+                if (d.signal === 'LONG') {
+                    longPoints.push({x: labels[i], y: d.vzo});
+                } else if (d.signal === 'SHORT') {
+                    shortPoints.push({x: labels[i], y: d.vzo});
+                }
+            });
+            
+            // Destroy existing chart
+            if (vzoChart) {
+                vzoChart.destroy();
+            }
+            
+            vzoChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'VZO',
+                            data: vzoData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'VZO MA',
+                            data: vzoMaData,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Slope (×10)',
+                            data: slopeData,
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'transparent',
+                            borderWidth: 1.5,
+                            fill: false,
+                            tension: 0.1,
+                            pointRadius: 0,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Long Signal',
+                            data: longPoints,
+                            borderColor: '#10b981',
+                            backgroundColor: '#10b981',
+                            pointRadius: 6,
+                            pointStyle: 'triangle',
+                            showLine: false
+                        },
+                        {
+                            label: 'Short Signal',
+                            data: shortPoints,
+                            borderColor: '#ef4444',
+                            backgroundColor: '#ef4444',
+                            pointRadius: 6,
+                            pointStyle: 'triangle',
+                            rotation: 180,
+                            showLine: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        if (context.dataset.label === 'Slope (×10)') {
+                                            label += (context.parsed.y / 10).toFixed(2);
+                                        } else {
+                                            label += context.parsed.y.toFixed(2);
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                obLine: {
+                                    type: 'line',
+                                    yMin: data.zones.overbought,
+                                    yMax: data.zones.overbought,
+                                    borderColor: 'rgba(239, 68, 68, 0.5)',
+                                    borderWidth: 1,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        display: true,
+                                        content: 'OB (40)',
+                                        position: 'end'
+                                    }
+                                },
+                                osLine: {
+                                    type: 'line',
+                                    yMin: data.zones.oversold,
+                                    yMax: data.zones.oversold,
+                                    borderColor: 'rgba(16, 185, 129, 0.5)',
+                                    borderWidth: 1,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        display: true,
+                                        content: 'OS (-40)',
+                                        position: 'end'
+                                    }
+                                },
+                                zeroLine: {
+                                    type: 'line',
+                                    yMin: 0,
+                                    yMax: 0,
+                                    borderColor: 'rgba(107, 114, 128, 0.5)',
+                                    borderWidth: 1
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: {
+                                    hour: 'HH:mm'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            position: 'left',
+                            min: -80,
+                            max: 80,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value;
+                                }
+                            }
+                        },
+                        y1: {
+                            position: 'right',
+                            min: -30,
+                            max: 30,
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return (value / 10).toFixed(1);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
     </script>
 </body>

@@ -28,8 +28,8 @@ if [ ! -f "$MODEL_PATH" ]; then
     echo ""
 fi
 
-# 获取端口（从环境变量或使用默认值 8080）
-PORT="${PORT:-8080}"
+# 获取端口（从环境变量或使用默认值 9000）
+PORT="${PORT:-9000}"
 
 # 启动服务器
 echo "✅ Starting Flask server..."
